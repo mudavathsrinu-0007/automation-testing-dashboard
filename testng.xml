@@ -1,0 +1,15 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+
+<suite name="AutomationSuite">
+
+    <test name="AllTests">
+
+        <classes>
+            <class name="com.example.automation_db.tests.LoginTest"/>
+            <class name="com.example.automation_db.tests.InvalidLoginTest"/>
+            <class name="com.example.automation_db.tests.GoogleSearchTest"/>
+        </classes>
+
+    </test>
+
+</suite>

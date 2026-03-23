@@ -1,0 +1,13 @@
+package com.example.automation_db;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class AutomationDbApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(AutomationDbApplication.class, args);
+    }
+
+}
