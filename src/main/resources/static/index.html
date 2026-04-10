@@ -47,6 +47,77 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            margin: 5px;
+        }
+
+        .status-section {
+            text-align: center;
+            margin: 10px 0 20px 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        #runStatus {
+            color: #333;
+            margin: 5px 0;
+        }
+
+        #lastUpdated {
+            color: #666;
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        #viewMode {
+            color: #444;
+            margin: 5px 0;
+            font-size: 15px;
+        }
+
+        .chart-container {
+            width: 700px;
+            max-width: 100%;
+            margin: 30px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .pie-chart-box {
+            width: 320px;
+            height: 320px;
+            margin: 0 auto;
+        }
+
+        .bar-chart-box {
+            width: 100%;
+            height: 320px;
+        }
+
+        .search-box {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .search-box input {
+            width: 320px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 15px;
+        }
+
+        .filter-buttons {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .auto-refresh {
+            text-align: center;
+            font-size: 14px;
+            color: gray;
+            margin: 10px 0;
         }
 
         table {
@@ -85,7 +156,21 @@
 <h1>Automation Test Dashboard</h1>
 
 <div class="top-bar">
+    <button onclick="runTests()">Run Tests</button>
     <button onclick="loadData()">Refresh Results</button>
+</div>
+
+<div class="status-section">
+    <p id="runStatus">Status: Ready</p>
+    <p id="lastUpdated">Last Updated: --</p>
+</div>
+
+<div class="status-section">
+    <p id="viewMode">View Mode: Previous History</p>
+</div>
+
+<div class="auto-refresh">
+    Auto-refresh every 5 seconds
 </div>
 
 <div class="cards">
@@ -105,6 +190,30 @@
     </div>
 </div>
 
+<div class="chart-container">
+    <div class="pie-chart-box">
+        <canvas id="statusChart"></canvas>
+    </div>
+</div>
+
+<div class="chart-container">
+    <div class="bar-chart-box">
+        <canvas id="executionChart"></canvas>
+    </div>
+</div>
+
+<div class="search-box">
+    <input type="text" id="searchInput" placeholder="Search Test Name / Status / Time..." onkeyup="filterTable()">
+</div>
+
+<div class="filter-buttons">
+    <button onclick="loadLatestData()">Latest Data</button>
+    <button onclick="loadHistoryData()">Previous History</button>
+    <button onclick="filterStatus('ALL')">All</button>
+    <button onclick="filterStatus('PASS')">Passed</button>
+    <button onclick="filterStatus('FAIL')">Failed</button>
+</div>
+
 <h2>Test Results</h2>
 
 <table>
@@ -114,48 +223,235 @@
         <th>Test Name</th>
         <th>Status</th>
         <th>Execution Time (ms)</th>
+        <th>Screenshot</th>
     </tr>
     </thead>
     <tbody id="tableBody"></tbody>
 </table>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
+    let statusChart = null;
+    let executionChart = null;
+    let allData = [];
+    let currentStatus = "ALL";
+    let currentView = "history";
+
+    function runTests() {
+        const status = document.getElementById("runStatus");
+
+        status.innerText = "Status: Running tests...";
+        status.style.color = "orange";
+
+        fetch('/api/run-tests', {
+            method: 'POST'
+        })
+        .then(response => response.text())
+        .then(message => {
+            if (message.toLowerCase().includes("success")) {
+                status.innerText = "Status: Tests completed successfully";
+                status.style.color = "green";
+            } else {
+                status.innerText = "Status: Test execution failed";
+                status.style.color = "red";
+            }
+
+            setTimeout(() => {
+                loadData();
+            }, 3000);
+        })
+        .catch(error => {
+            console.error("Error running tests:", error);
+            status.innerText = "Status: Failed to run tests";
+            status.style.color = "red";
+        });
+    }
+
     function loadData() {
-        fetch('/api/test-results')
+        if (currentView === "latest") {
+            loadLatestData();
+        } else {
+            loadHistoryData();
+        }
+    }
+
+    function loadLatestData() {
+        currentView = "latest";
+        document.getElementById("viewMode").innerText = "View Mode: Latest Data";
+
+        fetch('/api/latest-results')
             .then(response => response.json())
             .then(data => {
-
-                let total = data.length;
-                let pass = data.filter(r => r.status === "PASS").length;
-                let fail = data.filter(r => r.status === "FAIL").length;
-
-                document.getElementById("total").innerText = total;
-                document.getElementById("passed").innerText = pass;
-                document.getElementById("failed").innerText = fail;
-
-                let table = "";
-
-                data.forEach(r => {
-                    let statusClass = r.status === "PASS" ? "status-pass" : "status-fail";
-
-                    table += `
-                        <tr>
-                            <td>${r.id}</td>
-                            <td>${r.testName}</td>
-                            <td class="${statusClass}">${r.status}</td>
-                            <td>${r.executionTime}</td>
-                        </tr>
-                    `;
-                });
-
-                document.getElementById("tableBody").innerHTML = table;
+                updateDashboard(data);
             })
             .catch(error => {
-                console.error("Error loading dashboard data:", error);
+                console.error("Error loading latest results:", error);
             });
     }
 
-    loadData();
+    function loadHistoryData() {
+        currentView = "history";
+        document.getElementById("viewMode").innerText = "View Mode: Previous History";
+
+        fetch('/api/history-results')
+            .then(response => response.json())
+            .then(data => {
+                updateDashboard(data);
+            })
+            .catch(error => {
+                console.error("Error loading history results:", error);
+            });
+    }
+
+    function updateDashboard(data) {
+        allData = data;
+
+        let total = data.length;
+        let pass = data.filter(r => r.status === "PASS").length;
+        let fail = data.filter(r => r.status === "FAIL").length;
+
+        document.getElementById("total").innerText = total;
+        document.getElementById("passed").innerText = pass;
+        document.getElementById("failed").innerText = fail;
+
+        applyFilters();
+        updateChart(pass, fail);
+        updateExecutionChart(data);
+        updateLastUpdatedTime();
+    }
+
+    function renderTable(data) {
+        let table = "";
+
+        if (data.length === 0) {
+            table = `<tr><td colspan="5">No matching records found</td></tr>`;
+        } else {
+            data.forEach(r => {
+                let statusClass = r.status === "PASS" ? "status-pass" : "status-fail";
+
+                let screenshotHtml = "N/A";
+                if (r.screenshotPath && r.screenshotPath.trim() !== "") {
+                    screenshotHtml = `<a href="/${r.screenshotPath}" target="_blank">View</a>`;
+                }
+
+                table += `
+                    <tr>
+                        <td>${r.id}</td>
+                        <td>${r.testName}</td>
+                        <td class="${statusClass}">${r.status}</td>
+                        <td>${r.executionTime}</td>
+                        <td>${screenshotHtml}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        document.getElementById("tableBody").innerHTML = table;
+    }
+
+    function filterTable() {
+        applyFilters();
+    }
+
+    function filterStatus(status) {
+        currentStatus = status;
+        applyFilters();
+    }
+
+    function applyFilters() {
+        let searchValue = document.getElementById("searchInput").value.trim().toLowerCase();
+
+        let filteredData = allData.filter(r => {
+            return (
+                (r.testName.toLowerCase().includes(searchValue) ||
+                 r.status.toLowerCase().includes(searchValue) ||
+                 r.executionTime.toString().includes(searchValue))
+                &&
+                (currentStatus === "ALL" || r.status === currentStatus)
+            );
+        });
+
+        renderTable(filteredData);
+    }
+
+    function updateChart(pass, fail) {
+        const ctx = document.getElementById('statusChart').getContext('2d');
+
+        if (statusChart !== null) {
+            statusChart.destroy();
+        }
+
+        statusChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['Passed', 'Failed'],
+                datasets: [{
+                    data: [pass, fail],
+                    backgroundColor: ['#28a745', '#dc3545']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+
+    function updateExecutionChart(data) {
+        const ctx = document.getElementById('executionChart').getContext('2d');
+
+        if (executionChart !== null) {
+            executionChart.destroy();
+        }
+
+        let grouped = {};
+
+        data.forEach(r => {
+            let testName = r.testName;
+            let executionTime = Number(r.executionTime);
+
+            if (!grouped[testName]) {
+                grouped[testName] = { totalTime: 0, count: 0 };
+            }
+
+            grouped[testName].totalTime += executionTime;
+            grouped[testName].count += 1;
+        });
+
+        let labels = [];
+        let values = [];
+
+        for (let key in grouped) {
+            labels.push(key);
+            values.push(Math.round(grouped[key].totalTime / grouped[key].count));
+        }
+
+        executionChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Avg Execution Time (ms)',
+                    data: values,
+                    backgroundColor: '#007bff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+
+    function updateLastUpdatedTime() {
+        const now = new Date();
+        const formatted = now.toLocaleString();
+        document.getElementById("lastUpdated").innerText = "Last Updated: " + formatted;
+    }
+
+    loadHistoryData();
+    setInterval(loadData, 5000);
 </script>
 
 </body>

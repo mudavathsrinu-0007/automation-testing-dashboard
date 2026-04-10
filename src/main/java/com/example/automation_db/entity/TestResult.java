@@ -1,9 +1,13 @@
 package com.example.automation_db.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
-@Table(name="test_results")
+@Table(name = "test_results")
 public class TestResult {
 
     @Id
@@ -13,13 +17,19 @@ public class TestResult {
     private String testName;
     private String status;
     private String executionTime;
+    private Long runId;
 
-    public TestResult() {}
+    // 🔥 NEW FIELD (safe addition)
+    private String screenshotPath;
 
-    public TestResult(String testName, String status, String executionTime) {
+    public TestResult() {
+    }
+
+    public TestResult(String testName, String status, String executionTime, Long runId) {
         this.testName = testName;
         this.status = status;
         this.executionTime = executionTime;
+        this.runId = runId;
     }
 
     public Long getId() {
@@ -48,5 +58,23 @@ public class TestResult {
 
     public void setExecutionTime(String executionTime) {
         this.executionTime = executionTime;
+    }
+
+    public Long getRunId() {
+        return runId;
+    }
+
+    public void setRunId(Long runId) {
+        this.runId = runId;
+    }
+
+    // 🔥 NEW GETTER
+    public String getScreenshotPath() {
+        return screenshotPath;
+    }
+
+    // 🔥 NEW SETTER
+    public void setScreenshotPath(String screenshotPath) {
+        this.screenshotPath = screenshotPath;
     }
 }

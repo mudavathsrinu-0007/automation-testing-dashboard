@@ -3,38 +3,42 @@ package com.example.automation_db.tests;
 import com.example.automation_db.base.BaseTest;
 import com.example.automation_db.pages.GooglePage;
 import com.example.automation_db.utils.ResultSender;
+import com.example.automation_db.utils.ScreenshotUtil;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class GoogleSearchTest extends BaseTest {
 
     @Test
-    public void googleSearchTest() throws InterruptedException {
-
+    public void googleSearchTest() {
         long startTime = System.currentTimeMillis();
 
-        driver.get("https://www.google.com");
+        try {
+            driver.get("https://www.google.com");
 
-        GooglePage google = new GooglePage(driver);
+            GooglePage googlePage = new GooglePage(driver);
+            googlePage.search("Selenium Automation");
 
-        google.search("Selenium Automation");
+            Thread.sleep(2000);
 
-        Thread.sleep(3000);
+            String title = driver.getTitle();
 
-        String currentUrl = driver.getCurrentUrl();
+            // Natural validation
+            Assert.assertTrue(
+                    title.toLowerCase().contains("selenium"),
+                    "Search result title does not contain 'Selenium'"
+            );
 
-        String status;
+            long executionTime = System.currentTimeMillis() - startTime;
+            ResultSender.sendResult("GoogleSearchTest", "PASS", executionTime);
 
-        if(currentUrl.contains("Selenium+Automation")) {
-            System.out.println("TEST PASSED");
-            status = "PASS";
-        } else {
-            System.out.println("TEST FAILED");
-            status = "FAIL";
+        } catch (Throwable e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+
+            String screenshotPath = ScreenshotUtil.captureScreenshot(driver, "GoogleSearchTest");
+            ResultSender.sendResult("GoogleSearchTest", "FAIL", executionTime, screenshotPath);
+
+            throw new RuntimeException(e);
         }
-
-        long endTime = System.currentTimeMillis();
-        long executionTime = endTime - startTime;
-
-        ResultSender.sendResult("GoogleSearchTest", status, executionTime);
     }
 }
